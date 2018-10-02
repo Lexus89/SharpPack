@@ -1,0 +1,7 @@
+C:\Users\pentest\source\repos\SharpSql\SharpSql\bin\Debug\SharpSql.exe.config
+C:\Users\pentest\source\repos\SharpSql\SharpSql\bin\Debug\SharpSql.exe
+C:\Users\pentest\source\repos\SharpSql\SharpSql\bin\Debug\SharpSql.pdb
+C:\Users\pentest\source\repos\SharpSql\SharpSql\obj\Debug\SharpSql.csprojResolveAssemblyReference.cache
+C:\Users\pentest\source\repos\SharpSql\SharpSql\obj\Debug\SharpSql.csproj.CoreCompileInputs.cache
+C:\Users\pentest\source\repos\SharpSql\SharpSql\obj\Debug\SharpSql.exe
+C:\Users\pentest\source\repos\SharpSql\SharpSql\obj\Debug\SharpSql.pdb
