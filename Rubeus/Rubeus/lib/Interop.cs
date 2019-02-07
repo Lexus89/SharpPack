@@ -8,6 +8,17 @@ namespace Rubeus
 {
     public class Interop
     {
+        // constants
+
+        // From https://github.com/gentilkiwi/kekeo/blob/master/modules/asn1/kull_m_kerberos_asn1.h#L61
+        public const int KRB_KEY_USAGE_AS_REQ_PA_ENC_TIMESTAMP = 1;
+        public const int KRB_KEY_USAGE_AS_REP_EP_SESSION_KEY = 3;
+        public const int KRB_KEY_USAGE_TGS_REQ_PA_AUTHENTICATOR = 7;
+        public const int KRB_KEY_USAGE_TGS_REP_EP_SESSION_KEY = 8;
+        public const int KRB_KEY_USAGE_AP_REQ_AUTHENTICATOR = 11;
+        public const int KRB_KEY_USAGE_KRB_PRIV_ENCRYPTED_PART = 13;
+        public const int KRB_KEY_USAGE_KRB_CRED_ENCRYPTED_PART = 14;
+
         // Enums
 
         [Flags]
@@ -85,6 +96,18 @@ namespace Rubeus
             subkey_keymaterial = 65
         }
 
+        public enum KADMIN_PASSWD_ERR : UInt32
+        {
+            KRB5_KPASSWD_SUCCESS = 0,
+            KRB5_KPASSWD_MALFORMED = 1,
+            KRB5_KPASSWD_HARDERROR = 2,
+            KRB5_KPASSWD_AUTHERROR = 3,
+            KRB5_KPASSWD_SOFTERROR = 4,
+            KRB5_KPASSWD_ACCESSDENIED = 5,
+            KRB5_KPASSWD_BAD_VERSION = 6,
+            KRB5_KPASSWD_INITIAL_FLAG_NEEDED = 7
+        }
+
         public enum KERB_CHECKSUM_ALGORITHM
         {
             KERB_CHECKSUM_HMAC_SHA1_96_AES128 = 15,
@@ -145,6 +168,7 @@ namespace Rubeus
             TD_REQ_SEQ = 108,
             PA_PAC_REQUEST = 128,
             S4U2SELF = 129,
+            PA_PAC_OPTIONS = 167,
             PK_AS_09_BINDING = 132,
             CLIENT_CANONICALIZED = 133
         }
@@ -574,32 +598,78 @@ namespace Rubeus
         [StructLayout(LayoutKind.Sequential)]
         public struct LUID
         {
-            public uint LowPart;
-            public int HighPart;
+            public UInt32 LowPart;
+            public Int32 HighPart;
+
+            public LUID(UInt64 value)
+            {
+                LowPart = (UInt32)(value & 0xffffffffL);
+                HighPart = (Int32)(value >> 32);
+            }
+
+            public LUID(LUID value)
+            {
+                LowPart = value.LowPart;
+                HighPart = value.HighPart;
+            }
+
+            public LUID(string value)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(value, @"^0x[0-9A-Fa-f]+$"))
+                {
+                    // if the passed LUID string is of form 0xABC123
+                    UInt64 uintVal = Convert.ToUInt64(value, 16);
+                    LowPart = (UInt32)(uintVal & 0xffffffffL);
+                    HighPart = (Int32)(uintVal >> 32);
+                }
+                else if (System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d+$"))
+                {
+                    // if the passed LUID string is a decimal form
+                    UInt64 uintVal = UInt64.Parse(value);
+                    LowPart = (UInt32)(uintVal & 0xffffffffL);
+                    HighPart = (Int32)(uintVal >> 32);
+                }
+                else
+                {
+                    System.ArgumentException argEx = new System.ArgumentException("Passed LUID string value is not in a hex or decimal form", value);
+                    throw argEx;
+                }
+            }
+
+            public override int GetHashCode()
+            {
+                UInt64 Value = ((UInt64)this.HighPart << 32) + this.LowPart;
+                return Value.GetHashCode();
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is LUID && (((ulong)this) == (LUID) obj);
+            }
+
+            public override string ToString()
+            {
+                UInt64 Value = ((UInt64)this.HighPart << 32) + this.LowPart;
+                return String.Format("{0}", Value);
+            }
+
+            public static bool operator ==(LUID x, LUID y)
+            {
+                return (((ulong)x) == ((ulong)y));
+            }
+
+            public static bool operator !=(LUID x, LUID y)
+            {
+                return (((ulong)x) != ((ulong)y));
+            }
+
+            public static implicit operator ulong(LUID luid)
+            {
+                // enable casting to a ulong
+                UInt64 Value = ((UInt64)luid.HighPart << 32);
+                return Value + luid.LowPart;
+            }
         }
-
-        //[StructLayout(LayoutKind.Sequential)]
-        //public struct SECURITY_HANDLE
-        //{
-        //    public IntPtr LowPart;
-        //    public IntPtr HighPart;
-        //    public SECURITY_HANDLE(int dummy)
-        //    {
-        //        LowPart = HighPart = IntPtr.Zero;
-        //    }
-        //};
-
-        //[StructLayout(LayoutKind.Sequential)]
-        //public struct SECURITY_INTEGER
-        //{
-        //    public uint LowPart;
-        //    public int HighPart;
-        //    public SECURITY_INTEGER(int dummy)
-        //    {
-        //        LowPart = 0;
-        //        HighPart = 0;
-        //    }
-        //};
 
         [StructLayout(LayoutKind.Sequential)]
         public struct LSA_STRING_IN
@@ -710,7 +780,6 @@ namespace Rubeus
         {
             public KERB_PROTOCOL_MESSAGE_TYPE MessageType;
             public int CountOfTickets;
-            // public KERB_TICKET_CACHE_INFO[] Tickets;
             public IntPtr Tickets;
         }
 
@@ -727,13 +796,27 @@ namespace Rubeus
         }
 
         [StructLayout(LayoutKind.Sequential)]
+        public struct KERB_TICKET_CACHE_INFO_EX
+        {
+            public LSA_STRING_OUT ClientName;
+            public LSA_STRING_OUT ClientRealm;
+            public LSA_STRING_OUT ServerName;
+            public LSA_STRING_OUT ServerRealm;
+            public Int64 StartTime;
+            public Int64 EndTime;
+            public Int64 RenewTime;
+            public Int32 EncryptionType;
+            public UInt32 TicketFlags;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
         public struct KERB_EXTERNAL_NAME
         {
             public Int16 NameType;
             public UInt16 NameCount;
 
             [MarshalAs(UnmanagedType.ByValArray,
-                SizeConst = 2)]
+                SizeConst = 3)]
             public LSA_STRING_OUT[] Names;
             //public LSA_STRING_OUT[] Names;
         }
@@ -1258,6 +1341,11 @@ namespace Rubeus
         [DllImport("secur32.dll", CharSet = CharSet.Auto)]
         public static extern int FreeCredentialsHandle(
             [In] ref SECURITY_HANDLE phCredential
+        );
+
+        [DllImport("Secur32.dll")]
+        public static extern int FreeContextBuffer(
+            ref IntPtr pvContextBuffer
         );
     }
 }

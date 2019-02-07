@@ -20,6 +20,13 @@ namespace Rubeus
             value = new KERB_PA_PAC_REQUEST();
         }
 
+        public PA_DATA(bool claims, bool branch, bool fullDC, bool rbcd)
+        {
+            // defaults for creation
+            type = Interop.PADATA_TYPE.PA_PAC_OPTIONS;
+            value = new PA_PAC_OPTIONS(claims, branch, fullDC, rbcd);
+        }
+
         public PA_DATA(string keyString, Interop.KERB_ETYPE etype)
         {
             // include pac, supply enc timestamp
@@ -31,9 +38,9 @@ namespace Rubeus
             byte[] rawBytes = temp.Encode().Encode();
             byte[] key = Helpers.StringToByteArray(keyString);
 
-            // KRB_KEY_USAGE_AS_REQ_PA_ENC_TIMESTAMP		1
+            // KRB_KEY_USAGE_AS_REQ_PA_ENC_TIMESTAMP == 1
             // From https://github.com/gentilkiwi/kekeo/blob/master/modules/asn1/kull_m_kerberos_asn1.h#L55
-            byte[] encBytes = Crypto.KerberosEncrypt(etype, 1, key, rawBytes);
+            byte[] encBytes = Crypto.KerberosEncrypt(etype, Interop.KRB_KEY_USAGE_AS_REQ_PA_ENC_TIMESTAMP, key, rawBytes);
 
             value = new EncryptedData((int)etype, encBytes);
         }
@@ -115,7 +122,6 @@ namespace Rubeus
             else if (type == Interop.PADATA_TYPE.AP_REQ)
             {
                 // used for TGS-REQs
-                //paDataElt = ((AP_REQ)value).Encode(); //needed?
                 AsnElt blob = AsnElt.MakeBlob(((AP_REQ)value).Encode().Encode());
                 AsnElt blobSeq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { blob });
 
@@ -127,8 +133,17 @@ namespace Rubeus
             else if (type == Interop.PADATA_TYPE.S4U2SELF)
             {
                 // used for constrained delegation
-                paDataElt = ((PA_FOR_USER)value).Encode();
                 AsnElt blob = AsnElt.MakeBlob(((PA_FOR_USER)value).Encode().Encode());
+                AsnElt blobSeq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { blob });
+
+                paDataElt = AsnElt.MakeImplicit(AsnElt.CONTEXT, 2, blobSeq);
+
+                AsnElt seq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { nameTypeSeq, paDataElt });
+                return seq;
+            }
+            else if (type == Interop.PADATA_TYPE.PA_PAC_OPTIONS)
+            {
+                AsnElt blob = AsnElt.MakeBlob(((PA_PAC_OPTIONS)value).Encode().Encode());
                 AsnElt blobSeq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { blob });
 
                 paDataElt = AsnElt.MakeImplicit(AsnElt.CONTEXT, 2, blobSeq);

