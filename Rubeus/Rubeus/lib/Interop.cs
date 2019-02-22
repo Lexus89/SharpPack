@@ -96,6 +96,17 @@ namespace Rubeus
             subkey_keymaterial = 65
         }
 
+        [Flags]
+        public enum SUPPORTED_ETYPE : Int32
+        {
+            RC4_HMAC_DEFAULT = 0x0,
+            DES_CBC_CRC = 0x1,
+            DES_CBC_MD5 = 0x2,
+            RC4_HMAC = 0x4,
+            AES128_CTS_HMAC_SHA1_96 = 0x08,
+            AES256_CTS_HMAC_SHA1_96 = 0x10
+        }
+
         public enum KADMIN_PASSWD_ERR : UInt32
         {
             KRB5_KPASSWD_SUCCESS = 0,
@@ -530,7 +541,7 @@ namespace Rubeus
             public IntPtr Encrypt;
             public IntPtr Decrypt;
             public IntPtr Finish;
-            IntPtr HashPassword;
+            public IntPtr HashPassword;
             IntPtr RandomKey;
             IntPtr Control;
             IntPtr unk0_null;
@@ -650,7 +661,7 @@ namespace Rubeus
             public override string ToString()
             {
                 UInt64 Value = ((UInt64)this.HighPart << 32) + this.LowPart;
-                return String.Format("{0}", Value);
+                return String.Format("0x{0:x}", (ulong)Value);
             }
 
             public static bool operator ==(LUID x, LUID y)
@@ -891,6 +902,12 @@ namespace Rubeus
             public uint GroupCount;
             public uint PrivilegeCount;
             public LUID ModifiedId;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct TOKEN_ORIGIN
+        {
+            public LUID OriginatingLogonSession;
         }
 
         // the following are adapted from https://www.pinvoke.net/default.aspx/secur32.InitializeSecurityContext
@@ -1150,6 +1167,8 @@ namespace Rubeus
         public delegate int KERB_ECRYPT_Encrypt(IntPtr pContext, byte[] data, int dataSize, byte[] output, ref int outputSize);
         public delegate int KERB_ECRYPT_Decrypt(IntPtr pContext, byte[] data, int dataSize, byte[] output, ref int outputSize);
         public delegate int KERB_ECRYPT_Finish(ref IntPtr pContext);
+
+        public delegate int KERB_ECRYPT_HashPassword(UNICODE_STRING Password, UNICODE_STRING Salt, int count, byte[] output);
 
         //https://github.com/vletoux/MakeMeEnterpriseAdmin/blob/master/MakeMeEnterpriseAdmin.ps1#L1760-L1767
         public delegate int KERB_CHECKSUM_Initialize(int unk0, out IntPtr pContext);
