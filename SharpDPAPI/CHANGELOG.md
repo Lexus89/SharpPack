@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2019-07-25
+
+### Added
+* **ps** command to decrypt exported PSCredential xmls (thanks for the idea @gentilkiwi ;)
+* **blob** section for the README
+
+### Changed
+* **blob** command outputs hex if the data doesn't appear to be text
+
+
+## [1.4.0] - 2019-05-22
+
+### Added
+* **SharpChrome** project
+    * Separate project that implements a SQLite parsing database for Chrome triage. Uses shared files with SharpDPAPI. Adapted from the SharpWeb/SharpChrome project by @djhohnstein.
+    * **logins** function
+        * Finds/decrypts Chrome 'Login Data' files. See README.md for complete syntax/flags.
+    * **cookies** function
+        * Finds/decrypts Chrome 'Cookies' files. See README.md for complete syntax/flags.
+* Added **/mkfile:FILE** argument to credentials/vaults/rdg/triage commands, takes a SharpDPAPI or Mimikatz formatted file of {GUID}:SHA1 masterkey mappings (for offline triage)
+
+### Changed
+* Cleaned up and simplified the credentials/vaults/rdg/triage command functions in SharpDPAPI
+* Cleaned up and reorganized SharpDPAPI's default help menu output
+
+
+## [1.3.1] - 2019-05-09
+
+### Changed
+* When using /server:X, .RDG files parsed from RDCMan.settings files are translated to \\\\UNC paths for parsing
+
+### Fixed
+* **triage** command when used against a remote /server:X now works properly
+
+
+## [1.3.0] - 2019-05-09
+
+### Added
+* **rdg** action
+    * Find RDCMan.settings and linked .RDG files, or take a given /target .RDG/RDCMan.settings file/folder, and decrypt passwords given a /pvk, GUID key lookup table, or CryptUnprotectData (with /unprotect).
+* **blob** action
+    * Describe a supplied DPAPI binary blob, optionally decryption the blob with masterkey GUID lookups or a PVK masterkey decryption
+
+### Changed
+* Added IsTextUnicode() for vault/credential/blob decryption display, showing hex if unicode is detected
+* Added /target:C:\FOLDER\ option for the **masterkeys** function, for offline masterkey decryption
+* Updated README
+
 
 ## [1.2.0] - 2019-03-24 (Troopers edition ;)
 

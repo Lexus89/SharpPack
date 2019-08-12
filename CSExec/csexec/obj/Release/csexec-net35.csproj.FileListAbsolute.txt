@@ -1,0 +1,8 @@
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\obj\Release\csexec-net35.csproj.GenerateResource.cache
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\obj\Release\csexec.Properties.Resources.resources
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\obj\Release\csexec-net35.csproj.CoreCompileInputs.cache
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\obj\Release\csexec.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\bin\Release\net35\csexec.exe.config
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\bin\Release\net35\csexec.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\bin\Release\net35\csexec.pdb
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexec\obj\Release\csexec.pdb

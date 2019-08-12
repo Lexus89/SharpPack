@@ -1,0 +1,5 @@
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc-net35.csproj.CoreCompileInputs.cache
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\bin\Release\net35\csexecsvc.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\bin\Release\net35\csexecsvc.pdb
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc.pdb

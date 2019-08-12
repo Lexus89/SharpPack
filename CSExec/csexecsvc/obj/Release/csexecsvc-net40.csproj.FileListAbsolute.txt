@@ -1,0 +1,6 @@
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\bin\Release\net40\csexecsvc.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\bin\Release\net40\csexecsvc.pdb
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc-net40.csprojResolveAssemblyReference.cache
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc-net40.csproj.CoreCompileInputs.cache
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc.exe
+C:\Users\pentest\Desktop\CSExec-master\CSExec-master\csexecsvc\obj\Release\csexecsvc.pdb
